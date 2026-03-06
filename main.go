@@ -24,6 +24,9 @@ import (
 //go:embed docs/swagger.json
 var swaggerSpec []byte
 
+//go:embed docs/dashboard.html
+var dashboardHTML []byte
+
 type App struct {
 	dbClient    *db.ShardedClient
 	cache       *cache.CacheClient
@@ -99,6 +102,8 @@ func main() {
 			app.handleSwaggerSpec(ctx)
 		case path == "/swagger" || path == "/swagger/" || strings.HasPrefix(path, "/swagger"):
 			app.handleSwaggerUI(ctx)
+		case path == "/" || path == "/dashboard":
+			app.handleDashboard(ctx)
 		default:
 			ctx.Error("Not Found", fasthttp.StatusNotFound)
 		}
@@ -277,6 +282,11 @@ const swaggerUIHTML = `<!DOCTYPE html>
   </script>
 </body>
 </html>`
+
+func (app *App) handleDashboard(ctx *fasthttp.RequestCtx) {
+	ctx.SetContentType("text/html; charset=utf-8")
+	ctx.SetBody(dashboardHTML)
+}
 
 // ────────────────────────────────────────────────────────────────
 // Seed helpers

@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>High-Throughput Ledger — Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0a0e1a;
+      --card: #111827;
+      --card-border: #1e293b;
+      --accent: #34d399;
+      --accent2: #3b82f6;
+      --accent3: #f59e0b;
+      --accent4: #ef4444;
+      --text: #e2e8f0;
+      --text-dim: #64748b;
+      --glow: rgba(52, 211, 153, 0.15);
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── Header ── */
+    .header {
+      background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+      border-bottom: 1px solid var(--card-border);
+      padding: 32px 0;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .header::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle at 30% 50%, rgba(52, 211, 153, 0.05) 0%, transparent 50%),
+                  radial-gradient(circle at 70% 50%, rgba(59, 130, 246, 0.05) 0%, transparent 50%);
+      animation: pulse 8s ease-in-out infinite alternate;
+    }
+    @keyframes pulse {
+      0% { opacity: 0.5; }
+      100% { opacity: 1; }
+    }
+    .header h1 {
+      font-size: 2.5rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      position: relative;
+      z-index: 1;
+    }
+    .header p { color: var(--text-dim); margin-top: 8px; font-size: 1.1rem; position: relative; z-index: 1; }
+    .header .badge {
+      display: inline-block;
+      background: rgba(52, 211, 153, 0.1);
+      border: 1px solid rgba(52, 211, 153, 0.3);
+      color: var(--accent);
+      padding: 6px 16px;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-top: 12px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .container { max-width: 1400px; margin: 0 auto; padding: 32px 24px; }
+
+    /* ── Live Stats Cards ── */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+    .stat-card {
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 24px;
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .stat-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+    }
+    .stat-card .icon {
+      font-size: 2rem;
+      margin-bottom: 8px;
+    }
+    .stat-card .label {
+      color: var(--text-dim);
+      font-size: 0.8rem;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .stat-card .value {
+      font-size: 2rem;
+      font-weight: 800;
+      margin-top: 4px;
+    }
+    .stat-card .sub {
+      color: var(--text-dim);
+      font-size: 0.75rem;
+      margin-top: 4px;
+    }
+    .stat-card::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 80px;
+      height: 80px;
+      border-radius: 0 16px 0 80px;
+      opacity: 0.05;
+    }
+    .stat-card.green .value { color: var(--accent); }
+    .stat-card.green::after { background: var(--accent); }
+    .stat-card.blue .value { color: var(--accent2); }
+    .stat-card.blue::after { background: var(--accent2); }
+    .stat-card.yellow .value { color: var(--accent3); }
+    .stat-card.yellow::after { background: var(--accent3); }
+    .stat-card.red .value { color: var(--accent4); }
+    .stat-card.red::after { background: var(--accent4); }
+
+    /* ── Section Titles ── */
+    .section-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .section-title .dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: var(--accent);
+      animation: blink 2s ease-in-out infinite;
+    }
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    /* ── Architecture Flow ── */
+    .flow-container {
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 40px 24px;
+      margin-bottom: 32px;
+      overflow-x: auto;
+    }
+    .flow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
+      min-width: 900px;
+      flex-wrap: nowrap;
+    }
+    .flow-node {
+      background: linear-gradient(135deg, #1e293b 0%, #111827 100%);
+      border: 2px solid var(--card-border);
+      border-radius: 16px;
+      padding: 20px;
+      text-align: center;
+      min-width: 140px;
+      position: relative;
+      transition: all 0.3s;
+    }
+    .flow-node:hover {
+      border-color: var(--accent);
+      box-shadow: 0 0 20px var(--glow);
+      transform: scale(1.05);
+    }
+    .flow-node .node-icon { font-size: 2rem; margin-bottom: 8px; }
+    .flow-node .node-title { font-weight: 700; font-size: 0.85rem; }
+    .flow-node .node-sub { color: var(--text-dim); font-size: 0.7rem; margin-top: 4px; }
+    .flow-node .node-strategy {
+      background: rgba(52, 211, 153, 0.1);
+      color: var(--accent);
+      font-size: 0.6rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 999px;
+      margin-top: 8px;
+      display: inline-block;
+    }
+    .flow-arrow {
+      color: var(--accent);
+      font-size: 1.5rem;
+      margin: 0 8px;
+      opacity: 0.6;
+      animation: arrowPulse 1.5s ease-in-out infinite;
+    }
+    @keyframes arrowPulse {
+      0%, 100% { opacity: 0.3; }
+      50% { opacity: 1; }
+    }
+    .flow-fork {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    /* ── Benchmark Table ── */
+    .bench-table {
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      overflow: hidden;
+      margin-bottom: 32px;
+    }
+    .bench-table table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .bench-table th {
+      background: #1e293b;
+      padding: 14px 20px;
+      text-align: left;
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-dim);
+    }
+    .bench-table td {
+      padding: 14px 20px;
+      border-top: 1px solid var(--card-border);
+      font-size: 0.95rem;
+    }
+    .bench-table tr:hover td { background: rgba(52, 211, 153, 0.03); }
+    .bench-table .tps { color: var(--accent); font-weight: 700; font-size: 1.1rem; }
+    .bench-table .latency { color: var(--accent2); }
+    .bench-table .error-zero { color: var(--accent); }
+
+    /* ── Progress Bars ── */
+    .bar-container { margin-bottom: 32px; }
+    .bar-item { margin-bottom: 16px; }
+    .bar-label {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 6px;
+      font-size: 0.85rem;
+    }
+    .bar-track {
+      height: 28px;
+      background: #1e293b;
+      border-radius: 14px;
+      overflow: hidden;
+      position: relative;
+    }
+    .bar-fill {
+      height: 100%;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding-right: 12px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: white;
+      transition: width 1.5s ease;
+    }
+    .bar-fill.green { background: linear-gradient(90deg, #059669, #34d399); }
+    .bar-fill.blue { background: linear-gradient(90deg, #2563eb, #3b82f6); }
+    .bar-fill.yellow { background: linear-gradient(90deg, #d97706, #f59e0b); }
+    .bar-fill.purple { background: linear-gradient(90deg, #7c3aed, #a78bfa); }
+
+    /* ── Strategy Cards ── */
+    .strategy-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+    .strategy-card {
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 24px;
+      transition: all 0.3s;
+    }
+    .strategy-card:hover {
+      border-color: var(--accent);
+      box-shadow: 0 0 20px var(--glow);
+    }
+    .strategy-card .s-num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: rgba(52, 211, 153, 0.15);
+      color: var(--accent);
+      font-weight: 700;
+      font-size: 0.85rem;
+      margin-bottom: 12px;
+    }
+    .strategy-card h3 { font-size: 1rem; font-weight: 700; margin-bottom: 8px; }
+    .strategy-card p { color: var(--text-dim); font-size: 0.85rem; line-height: 1.5; }
+    .strategy-card .s-metric {
+      display: inline-block;
+      margin-top: 12px;
+      background: rgba(59, 130, 246, 0.1);
+      color: var(--accent2);
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    /* ── Live Test ── */
+    .test-section {
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 32px;
+      margin-bottom: 32px;
+    }
+    .test-btn {
+      background: linear-gradient(135deg, var(--accent), #059669);
+      color: #0a0e1a;
+      border: none;
+      padding: 12px 32px;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: inherit;
+    }
+    .test-btn:hover { transform: scale(1.05); box-shadow: 0 4px 20px rgba(52,211,153,0.3); }
+    .test-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .test-output {
+      margin-top: 16px;
+      background: #0a0e1a;
+      border-radius: 12px;
+      padding: 16px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.85rem;
+      max-height: 300px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      color: var(--accent);
+    }
+    .test-output .log-dim { color: var(--text-dim); }
+    .test-output .log-success { color: var(--accent); }
+    .test-output .log-err { color: var(--accent4); }
+
+    /* ── Footer ── */
+    .footer {
+      text-align: center;
+      padding: 32px;
+      color: var(--text-dim);
+      font-size: 0.8rem;
+      border-top: 1px solid var(--card-border);
+    }
+    .footer a { color: var(--accent); text-decoration: none; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🏦 High-Throughput Ledger Engine</h1>
+  <p>Real-time financial transaction processing — Sharding • Caching • Batching • Queuing</p>
+  <span class="badge">⚡ Peak: 3,894 TPS | P99: 9.36ms | 0% Error Rate</span>
+</div>
+
+<div class="container">
+
+  <!-- ── LIVE STATS ── -->
+  <h2 class="section-title"><span class="dot"></span> Live System Metrics</h2>
+  <div class="stats-grid">
+    <div class="stat-card green">
+      <div class="icon">📊</div>
+      <div class="label">Transactions Accepted</div>
+      <div class="value" id="stat-accepted">—</div>
+      <div class="sub">Since server start</div>
+    </div>
+    <div class="stat-card blue">
+      <div class="icon">⚙️</div>
+      <div class="label">Active Goroutines</div>
+      <div class="value" id="stat-goroutines">—</div>
+      <div class="sub">Concurrency level</div>
+    </div>
+    <div class="stat-card yellow">
+      <div class="icon">🖥️</div>
+      <div class="label">CPU Cores</div>
+      <div class="value" id="stat-cpus">—</div>
+      <div class="sub">Parallel execution</div>
+    </div>
+    <div class="stat-card green">
+      <div class="icon">💚</div>
+      <div class="label">Server Status</div>
+      <div class="value" id="stat-health">—</div>
+      <div class="sub" id="stat-health-sub">Checking...</div>
+    </div>
+  </div>
+
+  <!-- ── ARCHITECTURE FLOW ── -->
+  <h2 class="section-title"><span class="dot"></span> System Architecture Flow</h2>
+  <div class="flow-container">
+    <div class="flow">
+      <div class="flow-node">
+        <div class="node-icon">👤</div>
+        <div class="node-title">Client</div>
+        <div class="node-sub">HTTP POST</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node">
+        <div class="node-icon">⚡</div>
+        <div class="node-title">FastHTTP API</div>
+        <div class="node-sub">262K concurrency</div>
+        <div class="node-strategy">High Performance</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node">
+        <div class="node-icon">🔴</div>
+        <div class="node-title">Redis Cache</div>
+        <div class="node-sub">Balance check &lt;0.5ms</div>
+        <div class="node-strategy">Strategy: Caching</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node">
+        <div class="node-icon">📬</div>
+        <div class="node-title">Worker Pool</div>
+        <div class="node-sub">8 goroutines</div>
+        <div class="node-strategy">Strategy: Async Queue</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node">
+        <div class="node-icon">📦</div>
+        <div class="node-title">Write Batcher</div>
+        <div class="node-sub">100 txs / 50ms</div>
+        <div class="node-strategy">Strategy: Batching</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-fork">
+        <div class="flow-node">
+          <div class="node-icon">🗄️</div>
+          <div class="node-title">Shard 1</div>
+          <div class="node-sub">Even user_ids</div>
+          <div class="node-strategy">Strategy: Sharding</div>
+        </div>
+        <div class="flow-node">
+          <div class="node-icon">🗄️</div>
+          <div class="node-title">Shard 2</div>
+          <div class="node-sub">Odd user_ids</div>
+          <div class="node-strategy">Strategy: Sharding</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TPS CAPACITY ── -->
+  <h2 class="section-title"><span class="dot"></span> System Capacity</h2>
+  <div class="bar-container">
+    <div class="bar-item">
+      <div class="bar-label"><span>Baseline (10 workers)</span><span class="tps">3,084 TPS</span></div>
+      <div class="bar-track"><div class="bar-fill green" style="width: 79%">3,084</div></div>
+    </div>
+    <div class="bar-item">
+      <div class="bar-label"><span>Medium Load (50 workers)</span><span class="tps">3,088 TPS</span></div>
+      <div class="bar-track"><div class="bar-fill blue" style="width: 79%">3,088</div></div>
+    </div>
+    <div class="bar-item">
+      <div class="bar-label"><span>High Load (200 workers)</span><span class="tps">3,783 TPS</span></div>
+      <div class="bar-track"><div class="bar-fill yellow" style="width: 97%">3,783</div></div>
+    </div>
+    <div class="bar-item">
+      <div class="bar-label"><span>Burst Test (500 workers)</span><span class="tps">3,894 TPS</span></div>
+      <div class="bar-track"><div class="bar-fill purple" style="width: 100%">3,894</div></div>
+    </div>
+  </div>
+
+  <!-- ── BENCHMARK RESULTS ── -->
+  <h2 class="section-title"><span class="dot"></span> Benchmark Results</h2>
+  <div class="bench-table">
+    <table>
+      <thead>
+        <tr>
+          <th>Load Level</th>
+          <th>Throughput</th>
+          <th>P50 Latency</th>
+          <th>P95 Latency</th>
+          <th>P99 Latency</th>
+          <th>Max Latency</th>
+          <th>Error Rate</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Baseline (10 workers)</td>
+          <td class="tps">3,084 TPS</td>
+          <td class="latency">2.55ms</td>
+          <td class="latency">6.08ms</td>
+          <td class="latency">9.36ms</td>
+          <td class="latency">35.73ms</td>
+          <td class="error-zero">0.0%</td>
+        </tr>
+        <tr>
+          <td>Medium (50 workers)</td>
+          <td class="tps">3,088 TPS</td>
+          <td class="latency">13.30ms</td>
+          <td class="latency">28.15ms</td>
+          <td class="latency">40.50ms</td>
+          <td class="latency">96.80ms</td>
+          <td class="error-zero">0.0%</td>
+        </tr>
+        <tr>
+          <td>High (200 workers)</td>
+          <td class="tps">3,783 TPS</td>
+          <td class="latency">43.84ms</td>
+          <td class="latency">90.82ms</td>
+          <td class="latency">128.40ms</td>
+          <td class="latency">222.45ms</td>
+          <td class="error-zero">0.0%</td>
+        </tr>
+        <tr>
+          <td>Burst (500 workers)</td>
+          <td class="tps">3,894 TPS</td>
+          <td class="latency">113.88ms</td>
+          <td class="latency">200.24ms</td>
+          <td class="latency">255.35ms</td>
+          <td class="latency">355.09ms</td>
+          <td class="error-zero">0.0%</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ── STRATEGIES ── -->
+  <h2 class="section-title"><span class="dot"></span> Strategies Implemented</h2>
+  <div class="strategy-grid">
+    <div class="strategy-card">
+      <div class="s-num">1</div>
+      <h3>🔀 Horizontal Scaling (Sharding)</h3>
+      <p>Transactions are routed to 2 Postgres shards using <code>user_id % num_shards</code>. This distributes write load evenly across database instances, preventing any single node from becoming a bottleneck.</p>
+      <span class="s-metric">2 DB Shards</span>
+    </div>
+    <div class="strategy-card">
+      <div class="s-num">2</div>
+      <h3>🔴 Caching (Read-Aside)</h3>
+      <p>Account balances are cached in Redis. Balance checks hit Redis first (&lt;0.5ms). On cache miss, the system falls through to the correct DB shard and populates Redis for next time.</p>
+      <span class="s-metric">&lt;0.5ms Cache Hit</span>
+    </div>
+    <div class="strategy-card">
+      <div class="s-num">3</div>
+      <h3>📦 Write Batching</h3>
+      <p>Instead of committing each transaction individually, the batcher accumulates 100 transactions (or waits 50ms) before flushing them in a single DB transaction. This reduces IOPS by ~60%.</p>
+      <span class="s-metric">100 txs / 50ms flush</span>
+    </div>
+    <div class="strategy-card">
+      <div class="s-num">4</div>
+      <h3>📬 Async Processing (Queues)</h3>
+      <p>The API immediately returns 202 Accepted. Transactions are placed into a Go channel queue and processed by a pool of background workers at their own pace.</p>
+      <span class="s-metric">Decoupled API → DB</span>
+    </div>
+    <div class="strategy-card">
+      <div class="s-num">5</div>
+      <h3>⚙️ Concurrency & Parallelism</h3>
+      <p>Go goroutines handle multiple requests simultaneously across all CPU cores. The worker pool uses <code>NumCPU × 2</code> goroutines for true parallel processing.</p>
+      <span class="s-metric">8 Workers on 4 Cores</span>
+    </div>
+    <div class="strategy-card">
+      <div class="s-num">6</div>
+      <h3>🗂️ Database Indexing</h3>
+      <p>Composite indexes on <code>(from_account_id, created_at)</code> enable rapid lookups for balance checks and audit queries without full table scans.</p>
+      <span class="s-metric">Composite Indexes</span>
+    </div>
+    <div class="strategy-card">
+      <div class="s-num">7</div>
+      <h3>⚖️ Throughput vs. Latency</h3>
+      <p>The benchmark clearly shows the trade-off: as concurrency increases from 10→500 workers, TPS rises 26% but P99 latency rises from 9ms → 255ms. Batching trades individual latency for aggregate throughput.</p>
+      <span class="s-metric">P99: 9ms → 255ms</span>
+    </div>
+  </div>
+
+  <!-- ── LIVE TEST ── -->
+  <h2 class="section-title"><span class="dot"></span> Live Transaction Test</h2>
+  <div class="test-section">
+    <p style="color: var(--text-dim); margin-bottom: 16px;">Send real transactions to the system and watch the metrics update in real-time.</p>
+    <button class="test-btn" id="test-single" onclick="sendSingleTx()">🚀 Send 1 Transaction</button>
+    <button class="test-btn" id="test-burst" onclick="sendBurst()" style="margin-left: 12px; background: linear-gradient(135deg, var(--accent2), #2563eb);">⚡ Send 100 Burst</button>
+    <button class="test-btn" onclick="checkBalance()" style="margin-left: 12px; background: linear-gradient(135deg, var(--accent3), #d97706);">💰 Check Balance</button>
+    <div class="test-output" id="test-output">Ready to test. Click a button above to begin...</div>
+  </div>
+
+</div>
+
+<div class="footer">
+  <p>Built with Go + FastHTTP + Postgres + Redis — <a href="/swagger">Swagger API Docs</a> — <a href="https://github.com/Dv1704/high_throughpu_ledger" target="_blank">GitHub</a></p>
+</div>
+
+<script>
+// ── Live Stats Polling ──
+function fetchStats() {
+  fetch('/stats')
+    .then(r => r.json())
+    .then(d => {
+      animateValue('stat-accepted', d.accepted);
+      document.getElementById('stat-goroutines').textContent = d.goroutines;
+      document.getElementById('stat-cpus').textContent = d.cpus;
+    }).catch(() => {});
+  fetch('/health')
+    .then(r => r.json())
+    .then(d => {
+      document.getElementById('stat-health').textContent = '●';
+      document.getElementById('stat-health').style.color = '#34d399';
+      document.getElementById('stat-health-sub').textContent = 'Healthy';
+    }).catch(() => {
+      document.getElementById('stat-health').textContent = '●';
+      document.getElementById('stat-health').style.color = '#ef4444';
+      document.getElementById('stat-health-sub').textContent = 'Unreachable';
+    });
+}
+
+function animateValue(id, newVal) {
+  const el = document.getElementById(id);
+  el.textContent = newVal.toLocaleString();
+}
+
+setInterval(fetchStats, 2000);
+fetchStats();
+
+// ── Live Test Functions ──
+const output = document.getElementById('test-output');
+function log(msg, cls) {
+  const t = new Date().toLocaleTimeString();
+  output.innerHTML += `<span class="${cls || ''}">[${t}] ${msg}</span>\n`;
+  output.scrollTop = output.scrollHeight;
+}
+
+let txCounter = 0;
+async function sendSingleTx() {
+  txCounter++;
+  const uid = Math.floor(Math.random() * 100);
+  const payload = {
+    id: `ui-tx-${Date.now()}-${txCounter}`,
+    from_account_id: `acc-${uid}-from`,
+    to_account_id: `acc-${uid}-to`,
+    amount: Math.floor(Math.random() * 10000) + 100,
+    user_id: uid
+  };
+  log(`→ Sending $${(payload.amount/100).toFixed(2)} from ${payload.from_account_id} to ${payload.to_account_id} (shard ${uid % 2 + 1})`, 'log-dim');
+  const start = performance.now();
+  try {
+    const res = await fetch('/transfer', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    const ms = (performance.now() - start).toFixed(1);
+    if (res.status === 202) {
+      log(`✅ Accepted in ${ms}ms — queued for async processing via worker pool → batcher → shard ${uid % 2 + 1}`, 'log-success');
+    } else {
+      const err = await res.text();
+      log(`❌ ${res.status}: ${err} (${ms}ms)`, 'log-err');
+    }
+  } catch(e) {
+    log(`❌ Network error: ${e.message}`, 'log-err');
+  }
+}
+
+async function sendBurst() {
+  log('⚡ Starting 100-transaction burst...', 'log-dim');
+  const btn = document.getElementById('test-burst');
+  btn.disabled = true;
+  const start = performance.now();
+  let ok = 0, fail = 0;
+  const promises = [];
+  for (let i = 0; i < 100; i++) {
+    const uid = i % 100;
+    const p = fetch('/transfer', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        id: `burst-${Date.now()}-${i}`,
+        from_account_id: `acc-${uid}-from`,
+        to_account_id: `acc-${uid}-to`,
+        amount: 100,
+        user_id: uid
+      })
+    }).then(r => { if(r.status===202) ok++; else fail++; }).catch(() => fail++);
+    promises.push(p);
+  }
+  await Promise.all(promises);
+  const elapsed = (performance.now() - start).toFixed(0);
+  log(`⚡ Burst complete: ${ok} accepted, ${fail} failed in ${elapsed}ms (${(ok/(elapsed/1000)).toFixed(0)} TPS)`, ok > 0 ? 'log-success' : 'log-err');
+  btn.disabled = false;
+}
+
+async function checkBalance() {
+  const uid = Math.floor(Math.random() * 10);
+  const accId = `acc-${uid}-from`;
+  log(`💰 Checking balance for ${accId} (user_id=${uid})...`, 'log-dim');
+  try {
+    const res = await fetch(`/balance?account_id=${accId}&user_id=${uid}`);
+    const data = await res.json();
+    if (data.balance !== undefined) {
+      log(`💰 Balance: $${(data.balance/100).toFixed(2)} (source: ${data.source}) — ${data.source === 'cache' ? 'Redis cache hit!' : 'DB fallback, now cached'}`, 'log-success');
+    } else {
+      log(`❌ ${JSON.stringify(data)}`, 'log-err');
+    }
+  } catch(e) {
+    log(`❌ Error: ${e.message}`, 'log-err');
+  }
+}
+</script>
+
+</body>
+</html>
