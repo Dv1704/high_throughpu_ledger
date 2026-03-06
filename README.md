@@ -4,7 +4,15 @@
 
 ---
 
-## � Benchmark Results
+## 🌐 Live Demo
+
+- **Interactive Dashboard**: [http://144.91.111.151:8080/dashboard](http://144.91.111.151:8080/dashboard)
+- **Swagger API Docs**: [http://144.91.111.151:8080/swagger](http://144.91.111.151:8080/swagger)
+- **Health Check API**: [http://144.91.111.151:8080/health](http://144.91.111.151:8080/health)
+
+---
+
+## 📊 Benchmark Results
 
 All benchmarks run on a **4-core** machine with **2 Postgres shards** and **Redis**, using the built-in multi-scenario benchmark suite.
 
