@@ -1,0 +1,309 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "High-Frequency Ledger & Settlement Engine",
+    "description": "A high-throughput financial transaction processing API implementing sharding, caching, batching, and async queuing strategies for maximum TPS in a fintech context.",
+    "version": "1.0.0",
+    "contact": {
+      "name": "Fintech Team"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080",
+      "description": "Local development server"
+    }
+  ],
+  "paths": {
+    "/transfer": {
+      "post": {
+        "summary": "Submit a financial transaction",
+        "description": "Accepts a transfer request and queues it for asynchronous processing. The transaction goes through: API validation → Redis balance check (caching strategy) → Worker Pool (async queuing) → Write Batcher → Sharded Postgres commit.",
+        "operationId": "createTransfer",
+        "tags": ["Transactions"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransferRequest"
+              },
+              "example": {
+                "id": "tx-001",
+                "from_account_id": "acc-0-from",
+                "to_account_id": "acc-0-to",
+                "amount": 10000,
+                "user_id": 0
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Transaction accepted and queued for processing",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcceptedResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or insufficient balance",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "invalid_json": {
+                    "value": { "error": "invalid json" }
+                  },
+                  "insufficient_balance": {
+                    "value": { "error": "insufficient balance" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/balance": {
+      "get": {
+        "summary": "Check account balance",
+        "description": "Returns the balance for an account using the read-aside caching strategy. First checks Redis cache, then falls through to the correct Postgres shard on cache miss.",
+        "operationId": "getBalance",
+        "tags": ["Accounts"],
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "query",
+            "required": true,
+            "description": "The account identifier (e.g., acc-0-from)",
+            "schema": {
+              "type": "string"
+            },
+            "example": "acc-0-from"
+          },
+          {
+            "name": "user_id",
+            "in": "query",
+            "required": false,
+            "description": "The user ID (used to route to the correct database shard)",
+            "schema": {
+              "type": "integer"
+            },
+            "example": 0
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Balance retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BalanceResponse"
+                },
+                "examples": {
+                  "from_cache": {
+                    "summary": "Cache hit",
+                    "value": { "account_id": "acc-0-from", "balance": 100000000, "source": "cache" }
+                  },
+                  "from_db": {
+                    "summary": "Cache miss (DB fallback)",
+                    "value": { "account_id": "acc-0-from", "balance": 100000000, "source": "db" }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing account_id parameter",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Account not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "summary": "Health check",
+        "description": "Returns the health status of the service.",
+        "operationId": "healthCheck",
+        "tags": ["System"],
+        "responses": {
+          "200": {
+            "description": "Service is healthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/stats": {
+      "get": {
+        "summary": "Live system statistics",
+        "description": "Returns real-time system metrics including total accepted transactions, active goroutines, and available CPU cores.",
+        "operationId": "getStats",
+        "tags": ["System"],
+        "responses": {
+          "200": {
+            "description": "Current system statistics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "TransferRequest": {
+        "type": "object",
+        "required": ["from_account_id", "to_account_id", "amount", "user_id"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique transaction ID. Auto-generated (UUID) if not provided.",
+            "example": "tx-001"
+          },
+          "from_account_id": {
+            "type": "string",
+            "description": "Source account identifier",
+            "example": "acc-0-from"
+          },
+          "to_account_id": {
+            "type": "string",
+            "description": "Destination account identifier",
+            "example": "acc-0-to"
+          },
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Transfer amount in cents (e.g., 10000 = $100.00)",
+            "example": 10000
+          },
+          "user_id": {
+            "type": "integer",
+            "description": "User ID used for database shard routing (user_id % num_shards)",
+            "example": 0
+          }
+        }
+      },
+      "AcceptedResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "example": "accepted"
+          }
+        }
+      },
+      "BalanceResponse": {
+        "type": "object",
+        "properties": {
+          "account_id": {
+            "type": "string",
+            "example": "acc-0-from"
+          },
+          "balance": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Balance in cents",
+            "example": 100000000
+          },
+          "source": {
+            "type": "string",
+            "enum": ["cache", "db"],
+            "description": "Where the balance was retrieved from",
+            "example": "cache"
+          }
+        }
+      },
+      "HealthResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "example": "healthy"
+          },
+          "service": {
+            "type": "string",
+            "example": "high-throughput-ledger"
+          }
+        }
+      },
+      "StatsResponse": {
+        "type": "object",
+        "properties": {
+          "accepted": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Total accepted transactions since server start",
+            "example": 119436
+          },
+          "goroutines": {
+            "type": "integer",
+            "description": "Number of active Go goroutines",
+            "example": 15
+          },
+          "cpus": {
+            "type": "integer",
+            "description": "Available CPU cores",
+            "example": 4
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string",
+            "example": "invalid json"
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Transactions",
+      "description": "Financial transaction operations (async processing with batching)"
+    },
+    {
+      "name": "Accounts",
+      "description": "Account balance queries (cached via Redis read-aside pattern)"
+    },
+    {
+      "name": "System",
+      "description": "Health checks and live system metrics"
+    }
+  ]
+}

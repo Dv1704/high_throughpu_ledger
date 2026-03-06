@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"high_throughput_system/internal/cache"
@@ -12,12 +13,16 @@ import (
 	"log"
 	"os"
 	"runtime"
+	"strings"
 	"sync/atomic"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/valyala/fasthttp"
 )
+
+//go:embed docs/swagger.json
+var swaggerSpec []byte
 
 type App struct {
 	dbClient    *db.ShardedClient
@@ -80,15 +85,20 @@ func main() {
 	}()
 
 	requestHandler := func(ctx *fasthttp.RequestCtx) {
-		switch string(ctx.Path()) {
-		case "/transfer":
+		path := string(ctx.Path())
+		switch {
+		case path == "/transfer":
 			app.handleTransfer(ctx)
-		case "/balance":
+		case path == "/balance":
 			app.handleBalance(ctx)
-		case "/health":
+		case path == "/health":
 			app.handleHealth(ctx)
-		case "/stats":
+		case path == "/stats":
 			app.handleStats(ctx)
+		case path == "/docs/swagger.json":
+			app.handleSwaggerSpec(ctx)
+		case path == "/swagger" || path == "/swagger/" || strings.HasPrefix(path, "/swagger"):
+			app.handleSwaggerUI(ctx)
 		default:
 			ctx.Error("Not Found", fasthttp.StatusNotFound)
 		}
@@ -103,6 +113,7 @@ func main() {
 	}
 
 	log.Println("✅ Server starting on :8080...")
+	log.Println("📖 Swagger UI: http://localhost:8080/swagger")
 	if err := server.ListenAndServe(":8080"); err != nil {
 		log.Fatalf("Error in ListenAndServe: %v", err)
 	}
@@ -199,6 +210,73 @@ func (app *App) handleStats(ctx *fasthttp.RequestCtx) {
 	ctx.SetBodyString(fmt.Sprintf(`{"accepted":%d,"goroutines":%d,"cpus":%d}`,
 		accepted, runtime.NumGoroutine(), runtime.NumCPU()))
 }
+
+func (app *App) handleSwaggerSpec(ctx *fasthttp.RequestCtx) {
+	ctx.SetContentType("application/json")
+	ctx.Response.Header.Set("Access-Control-Allow-Origin", "*")
+	ctx.SetBody(swaggerSpec)
+}
+
+func (app *App) handleSwaggerUI(ctx *fasthttp.RequestCtx) {
+	ctx.SetContentType("text/html; charset=utf-8")
+	ctx.SetBodyString(swaggerUIHTML)
+}
+
+const swaggerUIHTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ledger API — Swagger</title>
+  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui.css" />
+  <style>
+    body { margin: 0; background: #1a1a2e; }
+    .swagger-ui .topbar { display: none; }
+    .swagger-ui { max-width: 1200px; margin: 0 auto; }
+    #header {
+      background: linear-gradient(135deg, #0f3443 0%, #34e89e 100%);
+      color: white;
+      padding: 24px 32px;
+      text-align: center;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    #header h1 { margin: 0 0 8px; font-size: 28px; font-weight: 700; }
+    #header p { margin: 0; opacity: 0.85; font-size: 14px; }
+    .badge {
+      display: inline-block;
+      background: rgba(255,255,255,0.2);
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      margin-top: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div id="header">
+    <h1>🏦 High-Frequency Ledger API</h1>
+    <p>Sharding • Caching • Batching • Async Queuing</p>
+    <span class="badge">Peak: 3,894 TPS | P99: 9ms baseline</span>
+  </div>
+  <div id="swagger-ui"></div>
+  <script src="https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui-bundle.js"></script>
+  <script>
+    SwaggerUIBundle({
+      url: "/docs/swagger.json",
+      dom_id: "#swagger-ui",
+      deepLinking: true,
+      presets: [
+        SwaggerUIBundle.presets.apis,
+        SwaggerUIBundle.SwaggerUIStandalonePreset
+      ],
+      layout: "BaseLayout",
+      defaultModelsExpandDepth: 1,
+      docExpansion: "list",
+      tryItOutEnabled: true
+    });
+  </script>
+</body>
+</html>`
 
 // ────────────────────────────────────────────────────────────────
 // Seed helpers
